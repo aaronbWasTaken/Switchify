@@ -5,12 +5,13 @@ import pygame as _pygame
 import gamepad as _gamepad
 import threading as _threading
 import gamepad_manager as _gamepad_manager
-from typing import Optional
+from typing import Optional, Any
 
 _pygame.init()
 _nx: _nxbt.Nxbt = _nxbt.Nxbt()
 _app: _flask.Flask = _flask.Flask(__name__)
 
+_saved_switches: dict[str, str] = {}
 _connected_gamepads: dict[int, dict] = {}
 """
 EXAMPLE FOR _connected_gamepads
@@ -57,7 +58,7 @@ def connect_controller() -> _flask.Response:
         return _flask.Response("Gamepad already connected", 400)
 
     ### Set gamepad params
-    gamepad = {
+    gamepad: dict[str, Any] = {
         "gamepad": None,
         "manager": None,
         "thread": None,
@@ -65,23 +66,24 @@ def connect_controller() -> _flask.Response:
     }
 
     try:
-        gamepad["gamepad"] = _gamepad.Gamepad(gamepad_id) # type: ignore
+        gamepad["gamepad"] = _gamepad.Gamepad(gamepad_id)
 
-    except _pygame.error: # Invalid joystick id (because there's no joystick)
+    except _pygame.error:
+        # Invalid joystick id (because there's no joystick)
         return _flask.Response("Joystick ID is invalid. Check if the joystick is connected.", 500)
     
-    gamepad["manager"] = _gamepad_manager.GamepadManager( # type: ignore
+    gamepad["manager"] = _gamepad_manager.GamepadManager( 
         nx = _nx,
         gamepad = gamepad["gamepad"],
         color = color,
         reconnect_address = switch_address
     )
-    gamepad["thread"] = _threading.Thread(  # type: ignore
+    gamepad["thread"] = _threading.Thread(
         target = gamepad["manager"].management_loop,
         daemon = True
     )
 
-    gamepad["name"] = custom_name or gamepad["gamepad"].get_name() # type: ignore
+    gamepad["name"] = custom_name or gamepad["gamepad"].get_name()
 
 
     ### Start gamepad manager thread
@@ -94,26 +96,27 @@ def connect_controller() -> _flask.Response:
     return _flask.jsonify({"status": "connected", "id": gamepad_id})
 
 
-@_app.route("/api/set_switch_alias")
-def set_switch_alias() -> _flask.Response:
+@_app.route("/api/set_switch_name")
+def set_switch_name() -> _flask.Response:
+    ### Get params from request
+    data = _flask.request.get_json()
+
+    if not isinstance(data, dict):
+        return _flask.Response("Invalid JSON", 400)
+
+    switch_address = data.get("switch_address")
+    new_name = data.get("name")
+
     if (
         switch_address is None
-        and alias is None
+        or new_name is None
     ):
-        data = _flask.request.get_json()
-
-        if data is None:
-            return _flask.Response("Could not fetch parameters", 500)
-
-        assert isinstance(data, dict)
-
-        switch_address = data.get("switch_address")
-        alias = data.get("alias")
+        return _flask.Response("Both parametes 'switch_address' and 'name' have to be set!", 400)
     
-    if (
-        switch_address is None
-        and alias is None
-    ):
-        return _flask.Response("Both parameters, 'switch_address' and 'alias' have to be set!", 400)
-    
+    ### Rename switch in _saved_switches
+    if switch_address in _saved_switches:
+        _saved_switches[switch_address] = new_name
+    else:
+        return _flask.Response(f"Switch {switch_address} was not found, therefore not renamed", 400)
 
+    return _flask.Response("OK", 200)
