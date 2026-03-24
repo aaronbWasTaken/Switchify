@@ -120,3 +120,36 @@ def set_switch_name() -> _flask.Response:
         return _flask.Response(f"Switch {switch_address} was not found, therefore not renamed", 400)
 
     return _flask.Response("OK", 200)
+
+@_app.route("/api/gamepads/")
+def get_gamepads() -> tuple[_flask.Response, int]:
+    _pygame.event.pump() # Ensures that all JOYSTICKADDED events are getting processed
+
+    gamepads: list[dict[str, Any]] = []
+
+    for gamepad_id in range(_pygame.joystick.get_count()):
+        gamepad: dict[str, Any] = {
+            "id": gamepad_id,
+            "name": None,
+            "connected": False
+        }
+
+        if gamepad_id in _connected_gamepads:
+            gamepad["connected"] = True
+            gp = _connected_gamepads[gamepad_id]
+            name = gp["gamepad"].get_name()
+            gamepad["name"] = gp["name"] + f" ({name})" # custom_name (gamepad_name)
+
+        else:
+            # Try block ensures that just now disconnected gamepads will be skipped
+            try:
+                joystick: _pygame.joystick.JoystickType = _pygame.joystick.Joystick(gamepad_id)
+                name: str = joystick.get_name()
+            except _pygame.error:
+                continue
+
+            gamepad["name"] = name
+        
+        gamepads.append(gamepad)
+
+    return _flask.jsonify(gamepads), 200
