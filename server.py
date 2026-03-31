@@ -11,7 +11,7 @@ _pygame.init()
 _nx: _nxbt.Nxbt = _nxbt.Nxbt()
 _app: _flask.Flask = _flask.Flask(__name__)
 
-_saved_switches: dict[str, str] = {}
+_switches: dict[str, str] = {}
 _connected_gamepads: dict[int, dict] = {}
 """
 EXAMPLE FOR _connected_gamepads
@@ -21,7 +21,6 @@ EXAMPLE FOR _connected_gamepads
         "gamepad": _gamepad.Gamepad(0), # Gamepad Object
         "manager": _gamepad_manager.GamepadManager(_nx, _gamepad.Gamepad(0)), # GamepadManager Object
         "thread": _threading.Thread(target=_gamepad_manager.GamepadManager(_nx, _gamepad.Gamepad(0)).management_loop) # Thread Object
-        "name": "Mario (Player 1)" # Custom Name or Gamepad Description
     }
 }
 """
@@ -50,7 +49,6 @@ def connect_controller() -> _flask.Response:
     else:
         gamepad_id = 0
     color = hex_to_rgb(data.get("color", "")) # format is #00ff88, default is pitch black
-    custom_name = data.get("name")
 
     assert isinstance(gamepad_id, int)
 
@@ -61,8 +59,7 @@ def connect_controller() -> _flask.Response:
     gamepad: dict[str, Any] = {
         "gamepad": None,
         "manager": None,
-        "thread": None,
-        "name": None
+        "thread": None
     }
 
     try:
@@ -82,9 +79,6 @@ def connect_controller() -> _flask.Response:
         target = gamepad["manager"].management_loop,
         daemon = True
     )
-
-    gamepad["name"] = custom_name or gamepad["gamepad"].get_name()
-
 
     ### Start gamepad manager thread
     gamepad["thread"].start()
@@ -113,9 +107,9 @@ def set_switch_name() -> _flask.Response:
     ):
         return _flask.Response("Both parametes 'switch_address' and 'name' have to be set!", 400)
     
-    ### Rename switch in _saved_switches
-    if switch_address in _saved_switches:
-        _saved_switches[switch_address] = new_name
+    ### Rename switch in _switches
+    if switch_address in _switches:
+        _switches[switch_address] = new_name
     else:
         return _flask.Response(f"Switch {switch_address} was not found, therefore not renamed", 400)
 
@@ -137,8 +131,7 @@ def get_gamepads() -> tuple[_flask.Response, int]:
         if gamepad_id in _connected_gamepads:
             gamepad["connected"] = True
             gp = _connected_gamepads[gamepad_id]
-            name = gp["gamepad"].get_name()
-            gamepad["name"] = gp["name"] + f" ({name})" # custom_name (gamepad_name)
+            gamepad["name"] = gp["gamepad"].get_name()
 
         else:
             # Try block ensures that just now disconnected gamepads will be skipped
@@ -153,3 +146,16 @@ def get_gamepads() -> tuple[_flask.Response, int]:
         gamepads.append(gamepad)
 
     return _flask.jsonify(gamepads), 200
+
+@_app.route("/api/switches")
+def get_switches() -> tuple[_flask.Response, int]:
+    switches: list[dict[str, str]] = []
+
+    for address, name in _switches.items():
+        switch: dict[str, str] = {"address": address}
+
+        if name or name != address:
+            switch["name"] = name
+    
+    return _flask.jsonify(switches), 200
+
