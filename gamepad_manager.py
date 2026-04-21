@@ -1,6 +1,7 @@
 #! /usr/local/bin/python3.9
 from gamepad import Gamepad
 from typing import Text, Optional
+from pygame.time import Clock
 import nxbt
 
 class GamepadManager:
@@ -56,8 +57,10 @@ class GamepadManager:
         self.gamepad.quit()
         self.disconnect()
     
-    def management_loop(self) -> None:
+    def management_loop(self, transmitting_rate_hz: int=120) -> None:
         try:
+            clock: Clock = Clock()
+
             if not self.gamepad.get_connected():
                 raise RuntimeError("Gamepad is not connected.")
 
@@ -69,6 +72,7 @@ class GamepadManager:
             
             while self.gamepad.get_connected():
                 self.send_switch_inputs()
+                clock.tick_busy_loop(transmitting_rate_hz)
             
             self.quit()
         except KeyboardInterrupt:
