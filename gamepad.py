@@ -76,7 +76,9 @@ class Gamepad:
         self._ended: bool = False
 
         for keyword, type in {
-            "XBOX": "XBOX",
+            "XBOX ONE": "XBOX ONE",
+            "XBOX": "XBOX 360",
+            "STADIA": "STADIA",
             "PS4": "PS4",
             "SONY": "PS5",
             "SWITCH PRO": "NSPRO"
@@ -207,7 +209,7 @@ class Gamepad:
         The mapping dictionary must follow the same structure as described
         in the __init__ method documentation.
 
-
+custom_mapping
         Args:
             custom_mapping (dict):
                 A custom input mapping dictionary structured as described
@@ -266,7 +268,7 @@ class Gamepad:
 
 
 _mappings: dict[str, dict] = {
-    "XBOX": {
+    "XBOX 360": {
         "A": {"type": "BUTTON", "index": 0},
         "B": {"type": "BUTTON", "index": 1},
         "X": {"type": "BUTTON", "index": 2},
@@ -284,6 +286,30 @@ _mappings: dict[str, dict] = {
         "RS X": {"type": "AXIS", "index": 3},
         "RS Y": {"type": "AXIS", "index": 4},
         "RT": {"type": "AXIS", "index": 5, "function": lambda x: x/2 + 0.5},
+        "RIGHT": {"type": "HAT", "index": 0, "function": lambda x: x[0] > 0},
+        "LEFT": {"type": "HAT", "index": 0, "function": lambda x: x[0] < 0},
+        "UP": {"type": "HAT", "index": 0, "function": lambda x: x[1] > 0},
+        "DOWN": {"type": "HAT", "index": 0, "function": lambda x: x[1] < 0},
+    },
+
+    "XBOX ONE": {
+        "A": {"type": "BUTTON", "index": 0},
+        "B": {"type": "BUTTON", "index": 1},
+        "X": {"type": "BUTTON", "index": 3},
+        "Y": {"type": "BUTTON", "index": 4},
+        "LB": {"type": "BUTTON", "index": 6},
+        "RB": {"type": "BUTTON", "index": 7},
+        "BACK": {"type": "BUTTON", "index": 10},
+        "START": {"type": "BUTTON", "index": 11},
+        "GUIDE": {"type": "BUTTON", "index": 12},
+        "LS": {"type": "BUTTON", "index": 13},
+        "RS": {"type": "BUTTON", "index": 14},
+        "LS X": {"type": "AXIS", "index": 0},
+        "LS Y": {"type": "AXIS", "index": 1},
+        "LT": {"type": "AXIS", "index": 5, "function": lambda x: x/2 + 0.5},
+        "RS X": {"type": "AXIS", "index": 2},
+        "RS Y": {"type": "AXIS", "index": 3},
+        "RT": {"type": "AXIS", "index": 4, "function": lambda x: x/2 + 0.5},
         "RIGHT": {"type": "HAT", "index": 0, "function": lambda x: x[0] > 0},
         "LEFT": {"type": "HAT", "index": 0, "function": lambda x: x[0] < 0},
         "UP": {"type": "HAT", "index": 0, "function": lambda x: x[1] > 0},
@@ -362,5 +388,75 @@ _mappings: dict[str, dict] = {
         "RS Y": {"type": "AXIS", "index": 3},
         "LT": {"type": "AXIS", "index": 4},
         "RT": {"type": "AXIS", "index": 5},
+    },
+
+    "STADIA": {
+        "A": {"type": "BUTTON", "index": 0},
+        "B": {"type": "BUTTON", "index": 1},
+        "X": {"type": "BUTTON", "index": 2},
+        "Y": {"type": "BUTTON", "index": 3},
+        "LB": {"type": "BUTTON", "index": 4},
+        "RB": {"type": "BUTTON", "index": 5},
+        "BACK": {"type": "BUTTON", "index": 6},
+        "START": {"type": "BUTTON", "index": 7},
+        "GUIDE": {"type": "BUTTON", "index": 8},
+        "LS": {"type": "BUTTON", "index": 9},
+        "RS": {"type": "BUTTON", "index": 10},
+        "EXTRA": {"type": "BUTTON", "index": 12}, # 11 and 12 are EXTRA Buttons, but i just leave 11 unmapped for now.
+        "LS X": {"type": "AXIS", "index": 0},
+        "LS Y": {"type": "AXIS", "index": 1},
+        "LT": {"type": "AXIS", "index": 5, "function": lambda x: x/2 + 0.5},
+        "RS X": {"type": "AXIS", "index": 2},
+        "RS Y": {"type": "AXIS", "index": 3},
+        "RT": {"type": "AXIS", "index": 4, "function": lambda x: x/2 + 0.5},
+        "RIGHT": {"type": "HAT", "index": 0, "function": lambda x: x[0] > 0},
+        "LEFT": {"type": "HAT", "index": 0, "function": lambda x: x[0] < 0},
+        "UP": {"type": "HAT", "index": 0, "function": lambda x: x[1] > 0},
+        "DOWN": {"type": "HAT", "index": 0, "function": lambda x: x[1] < 0},
     }
 }
+
+if __name__ == "__main__":
+    pygame.init()
+    gamepad: pygame.joystick.JoystickType = pygame.joystick.Joystick(0)
+
+    num_axes: int = gamepad.get_numaxes()
+    num_hats: int = gamepad.get_numhats()
+    num_balls: int = gamepad.get_numballs()
+    num_buttons: int = gamepad.get_numbuttons()
+
+    print(f"""\
+===== Gamepad Diagnosis Tool =====
+GAMEPAD INFORMATION (ID: 0):
+- Name: {gamepad.get_name()}
+- GUID: {gamepad.get_guid()}
+- Power Level: {gamepad.get_power_level()}
+- Button Count: {num_buttons}
+- Axis Count: {num_axes}
+- Ball Count: {num_balls}
+- Hat Count: {num_hats}""")
+    
+    input("Press Enter to start input readout")
+
+    clock: pygame.time.Clock = pygame.time.Clock()
+    clear_screen = lambda: print()
+    prev_output = ""
+
+    try:
+        while True:
+            clock.tick_busy_loop(20)
+            pygame.event.pump() # Essential for running without GUI
+
+            output = (
+                "\033[H\033[JAxes: " + " ".join(f"{i}: {gamepad.get_axis(i):.2f}" for i in range(num_axes)) +
+                "\nHats: " + ", ".join(f"{i}: {gamepad.get_hat(i)}" for i in range(num_hats)) +
+                "\nBalls: " + ", ".join(f"{i}: {tuple(map(lambda x: round(x, 3), gamepad.get_ball(i)))}" for i in range(num_balls)) +
+                "\nButtons: " + ", ".join(f"{i}: {gamepad.get_button(i)}" for i in range(num_buttons))
+            )
+
+            if output != prev_output:
+                prev_output = output
+                clear_screen()
+                print(output)
+    except KeyboardInterrupt:
+        print("\nCTRL+C - Exiting Gamepad Diagnosis Tool")
