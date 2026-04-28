@@ -6,10 +6,12 @@ import gamepad as _gamepad
 import threading as _threading
 import gamepad_manager as _gamepad_manager
 from typing import Optional, Any
+from flask_cors import CORS as _CORS
 
 _pygame.init()
 _nx: _nxbt.Nxbt = _nxbt.Nxbt()
 _app: _flask.Flask = _flask.Flask(__name__)
+_CORS(_app)
 
 _switches: dict[str, str] = {}
 _connected_gamepads: dict[int, dict] = {}
@@ -20,7 +22,6 @@ EXAMPLE FOR _connected_gamepads
     0: {
         "gamepad": _gamepad.Gamepad(0), # Gamepad Object
         "manager": _gamepad_manager.GamepadManager(_nx, _gamepad.Gamepad(0)), # GamepadManager Object
-        "thread": _threading.Thread(target=_gamepad_manager.GamepadManager(_nx, _gamepad.Gamepad(0)).management_loop) # Thread Object
     }
 }
 """
@@ -35,8 +36,14 @@ def hex_to_rgb(hex_color: str) -> tuple[int, int, int]:
     )
 
 
-@_app.route("/api/connect_controller", methods=["POST"])
-def connect_controller() -> _flask.Response:
+@_app.route("/api/gamepads/connect", methods=["POST"])
+def connect_gamepad() -> _flask.Response:
+    if len(_nx.get_available_adapters()) <= len(_connected_gamepads):
+        response: _flask.Response = _flask.jsonify({"error": "Not enough Bluteooth adapters"})
+        response.status_code = 500
+
+        return response
+
     ### Get params from request
     data = _flask.request.get_json()
 
@@ -44,10 +51,11 @@ def connect_controller() -> _flask.Response:
         return _flask.Response("Invalid JSON", 400)
 
     switch_address = data.get("switch_address")
-    if _connected_gamepads:
-        gamepad_id = min(i for i in range(max(_connected_gamepads) + 2) if i not in _connected_gamepads)
-    else:
-        gamepad_id = 0
+    gamepad_id = data.get("gamepad_id", (
+        min(i for i in range(max(_connected_gamepads) + 2) if i not in _connected_gamepads)
+            if _connected_gamepads else
+        0
+    ))
     color = hex_to_rgb(data.get("color", "")) # format is #00ff88, default is pitch black
 
     assert isinstance(gamepad_id, int)
@@ -58,8 +66,7 @@ def connect_controller() -> _flask.Response:
     ### Set gamepad params
     gamepad: dict[str, Any] = {
         "gamepad": None,
-        "manager": None,
-        "thread": None
+        "manager": None
     }
 
     try:
@@ -75,30 +82,37 @@ def connect_controller() -> _flask.Response:
         color = color,
         reconnect_address = switch_address
     )
-    gamepad["thread"] = _threading.Thread(
-        target = gamepad["manager"].management_loop,
-        daemon = True
-    )
 
     ### Start gamepad manager thread
-    gamepad["thread"].start()
-
+    gamepad["manager"].start_manager()
     
     ### Store gamepad globally
     _connected_gamepads[gamepad_id] = gamepad
 
-    return _flask.jsonify({"status": "connected", "id": gamepad_id})
+    return _flask.jsonify({"id": gamepad_id, "connected": True})
 
+@_app.route("/api/gamepads/<int:gamepad_id>/disconnect")
+def disconnect_gamepad(gamepad_id: int) -> _flask.Response:
+    gamepad = _connected_gamepads.get(gamepad_id)
 
-@_app.route("/api/set_switch_name")
-def set_switch_name() -> _flask.Response:
+    if gamepad is not None:
+        manager = gamepad.get("manager")
+        if isinstance(manager, _gamepad_manager.GamepadManager):
+            manager.stop_manager()
+
+            # Delete controller entry
+            del _connected_gamepads[gamepad_id]
+        
+    return _flask.jsonify({"id": gamepad_id, "connected": False})
+
+@_app.route("/api/switches/<string:switch_address>/set_name", methods=["POST"])
+def set_switch_name(switch_address: str) -> _flask.Response:
     ### Get params from request
     data = _flask.request.get_json()
 
     if not isinstance(data, dict):
         return _flask.Response("Invalid JSON", 400)
 
-    switch_address = data.get("switch_address")
     new_name = data.get("name")
 
     if (
@@ -108,14 +122,11 @@ def set_switch_name() -> _flask.Response:
         return _flask.Response("Both parametes 'switch_address' and 'name' have to be set!", 400)
     
     ### Rename switch in _switches
-    if switch_address in _switches:
-        _switches[switch_address] = new_name
-    else:
-        return _flask.Response(f"Switch {switch_address} was not found, therefore not renamed", 400)
+    _switches[switch_address] = new_name
 
     return _flask.Response("OK", 200)
 
-@_app.route("/api/gamepads/")
+@_app.route("/api/gamepads")
 def get_gamepads() -> tuple[_flask.Response, int]:
     _pygame.event.pump() # Ensures that all JOYSTICKADDED events are getting processed
 
@@ -134,14 +145,12 @@ def get_gamepads() -> tuple[_flask.Response, int]:
             gamepad["name"] = gp["gamepad"].get_name()
 
         else:
-            # Try block ensures that just now disconnected gamepads will be skipped
             try:
                 joystick: _pygame.joystick.JoystickType = _pygame.joystick.Joystick(gamepad_id)
-                name: str = joystick.get_name()
-            except _pygame.error:
-                continue
+                gamepad["name"] = joystick.get_name()
 
-            gamepad["name"] = name
+            except _pygame.error: # Joystick ID not found
+                continue
         
         gamepads.append(gamepad)
 
@@ -149,13 +158,27 @@ def get_gamepads() -> tuple[_flask.Response, int]:
 
 @_app.route("/api/switches")
 def get_switches() -> tuple[_flask.Response, int]:
-    switches: list[dict[str, str]] = []
+    switches: list[dict[str, str]] = [{
+        "address": address,
+        "name": _switches.get(address)
+    } for address in _nx.get_switch_addresses()]
 
     for address, name in _switches.items():
         switch: dict[str, str] = {"address": address}
 
         if name or name != address:
             switch["name"] = name
+
+    switches.append({
+        "name": "Pair new Switch",
+        "address": None
+    })
     
     return _flask.jsonify(switches), 200
 
+
+if __name__ == "__main__":
+    _app.run(
+        "127.0.0.1",
+        8080
+    )
