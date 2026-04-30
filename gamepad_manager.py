@@ -1,8 +1,7 @@
 #! /usr/local/bin/python3.9
 from gamepad import Gamepad
 from typing import Text, Optional
-from pygame.time import Clock
-import nxbt, time, threading
+import nxbt, threading
 
 class GamepadManager:
     def __init__(
@@ -65,11 +64,11 @@ class GamepadManager:
             except:
                 return
 
-    def start_manager(self, transmitting_rate_hz: int=120) -> None:
+    def start_manager(self) -> None:
         self.stop_manager_event = threading.Event()
         self.manager_thread = threading.Thread(
             target=self.management_loop,
-            args=(transmitting_rate_hz, self.stop_manager_event)
+            args=(self.stop_manager_event,)
         )
         self.manager_thread.start()
 
@@ -82,10 +81,8 @@ class GamepadManager:
             self.stop_manager_event = None
             self.manager_thread = None
     
-    def management_loop(self, transmitting_rate_hz: int, stop_event: threading.Event) -> None:
+    def management_loop(self, stop_event: threading.Event) -> None:
         try:
-            clock: Clock = Clock()
-
             if not self._gamepad.get_connected():
                 raise RuntimeError("Gamepad is not connected.")
 
@@ -95,7 +92,6 @@ class GamepadManager:
             self.nx.wait_for_connection(self.player_number)
             
             while self.get_connected() and not stop_event.is_set():
-                clock.tick_busy_loop(transmitting_rate_hz)
                 self.send_switch_inputs()
             
             self.disconnect()

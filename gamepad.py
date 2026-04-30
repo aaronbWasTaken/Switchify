@@ -74,6 +74,13 @@ class Gamepad:
         self._gamepad: pygame.joystick.JoystickType = pygame.joystick.Joystick(controller_id)
         self._id: int = controller_id
         self._ended: bool = False
+        self._getter: dict[str, function] = {
+            "HAT": self._gamepad.get_hat,
+            "AXIS": self._gamepad.get_axis,
+            "BALL": self._gamepad.get_ball,
+            "BUTTON": self._gamepad.get_button
+
+        }
 
         for keyword, type in {
             "XBOX ONE": "XBOX ONE",
@@ -91,7 +98,7 @@ class Gamepad:
                 raise ValueError(f"Unsupported gamepad type: {self._gamepad.get_name()}\nSupported types are: XBOX, PS4, PS5, SWITCH PRO\nYou can also provide a custom mapping dictionary.")
             
             self._type: str = "CUSTOM"
-            self.custom_mapping: dict = custom_mapping
+        self._mapping = custom_mapping if self._type == "CUSTOM" else copy.deepcopy(_mappings[self._type])
 
     def get_name(self) -> str:
         """
@@ -195,9 +202,7 @@ class Gamepad:
             dict:
                 The input mapping dictionary for the gamepad.
         """
-        if self._type == "CUSTOM":
-            return self.custom_mapping
-        return copy.deepcopy(_mappings[self._type])
+        return self._mapping
 
     def set_mapping(self, custom_mapping: dict) -> None:
         """
@@ -240,29 +245,14 @@ custom_mapping
         pygame.event.pump()
 
         for input, mapping in self.get_mapping().items():
-            if mapping["type"] == "BUTTON":
-                input_getter = self._gamepad.get_button
-            elif mapping["type"] == "AXIS":
-                input_getter = self._gamepad.get_axis
-            elif mapping["type"] == "HAT":
-                input_getter = self._gamepad.get_hat
-            elif mapping["type"] == "BALL":
-                input_getter = self._gamepad.get_ball
-            else:
-                continue
-
-            try:
-                inputs[input] = input_getter(mapping["index"])
-            except:
-                print(f"Error in configuration for type {self._type} input {input}:", "Index is invalid")
+            if mapping["type"] not in self._getter:
                 continue
 
             if "function" in mapping:
-                try:
-                    inputs[input] = mapping["function"](inputs[input])
-                except:
-                    print(f"Error in configuration for type {self._type} input {input}:", "Function cannot be evaluated")
-                    continue
+                inputs[input] = mapping["function"](self._getter[mapping["type"]](mapping["index"]))
+            
+            else:
+                inputs[input] = self._getter[mapping["type"]](mapping["index"])
                 
         return inputs
 
