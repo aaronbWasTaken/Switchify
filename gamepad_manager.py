@@ -93,9 +93,10 @@ class GamepadManager:
             
             while self.get_connected() and not stop_event.is_set():
                 self.send_switch_inputs()
-            
-            self.disconnect()
+
         except KeyboardInterrupt:
+            pass
+        finally:
             self.disconnect()
             
 

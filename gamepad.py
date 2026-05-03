@@ -109,6 +109,16 @@ class Gamepad:
                 The name reported by the underlying pygame joystick device.
         """
         return self._gamepad.get_name()
+    
+    def get_uuid(self) -> str:
+        """
+        Get the UUID of the connected gamepad
+
+        Returns:
+            str:
+                The UUID reported by the underlying pygame joystick device.
+        """
+        return self._gamepad.get_guid()
 
     def get_power_level(self) -> float:
         """
@@ -425,14 +435,14 @@ GAMEPAD INFORMATION (ID: 0):
 - Axis Count: {num_axes}
 - Ball Count: {num_balls}
 - Hat Count: {num_hats}""")
-    
-    input("Press Enter to start input readout")
-
-    clock: pygame.time.Clock = pygame.time.Clock()
-    clear_screen = lambda: print()
-    prev_output = ""
 
     try:
+        input("Press Enter to start input readout")
+
+        clock: pygame.time.Clock = pygame.time.Clock()
+        clear_screen = lambda: print()
+        prev_output = ""
+
         while True:
             clock.tick_busy_loop(20)
             pygame.event.pump() # Essential for running without GUI
