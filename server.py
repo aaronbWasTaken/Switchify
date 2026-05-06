@@ -1,9 +1,11 @@
 #! /usr/local/bin/python3.9
 import nxbt as _nxbt
+import json as _json
 import flask as _flask
 import pygame as _pygame
 import gamepad as _gamepad
 import gamepad_manager as _gamepad_manager
+from io import BytesIO
 from typing import Optional, Any
 from flask_cors import CORS as _CORS
 
@@ -13,18 +15,28 @@ _app: _flask.Flask = _flask.Flask(__name__)
 _CORS(_app)
 
 _saved_switches: dict[str, str] = {}
+"""
+EXAMPLE FOR _saved_switches
+{
+    # Key is the bluetooth hardware id of the Nintendo Switch
+    # Value is the Switch's alias 
+    "12:34:56:78:9A:BC": "aaronbWasTaken's Nintendo Switch 2",
+    "FE:DC:BA:98:76:54": "My Nintendo Switch Lite"
+}
+"""
 _saved_gamepads: dict[str, dict] = {}
 """
 EXAMPLE FOR _saved_gamepads
 {
     # Key is same as gamepad's UUID
-    "050082795e040000200b000023050000": {
+    "0123456789abcdef1011121314151617": {
         "name": "Blue XBOX One Controller", # Name in the web interface
-        "color": (30, 40, 170) # RGB values of the gamepad in the web interface and on the switch
-        "last_gamepad_id": None # Never was connected so it's None
-        "switch_mac_addess": 94:58:CB:D1:A6:11
+        "color": (30, 40, 170), # RGB values of the gamepad in the web interface and on the switch
+        "last_gamepad_id": None, # Never was connected so it's None
+        "switch_mac_addess": "12:34:56:78:9A:BC"
     }
-}"""
+}
+"""
 _connected_gamepads: dict[int, dict] = {}
 """
 EXAMPLE FOR _connected_gamepads
@@ -218,7 +230,7 @@ def set_gamepad_config(gamepad_uuid: str) -> _flask.Response:
     if "color" in data and data["color"] is not None:
         data["color"] = hex_to_rgb(data["color"])
 
-    ### Rename Gamepad
+    ### Change gamepad config
     if gamepad_uuid in _saved_gamepads:
         if "name" in data:
             _saved_gamepads[gamepad_uuid]["name"] = data["name"]
@@ -231,6 +243,7 @@ def set_gamepad_config(gamepad_uuid: str) -> _flask.Response:
 
         return get_gamepad_by_uuid(gamepad_uuid)
     
+    ### Create gamepad config
     for gamepad_id in range(_pygame.joystick.get_count()):
         joystick: _pygame.joystick.JoystickType = _pygame.joystick.Joystick(gamepad_id)
 
@@ -248,10 +261,25 @@ def set_gamepad_config(gamepad_uuid: str) -> _flask.Response:
     
     return _flask.Response(f"No gamepad with UUID of '{gamepad_uuid}' found.", 404)
 
+@_app.route("/api/gamepads", methods=["DELETE"])
+def delete_gamepad_configs() -> _flask.Response:
+    _saved_gamepads = {}
+
+    return _flask.Response("No Content", 204)
+
+@_app.route("/api/gamepads/<string:gamepad_uuid>", methods=["DELETE"])
+def delete_gamepad_config(gamepad_uuid: str) -> _flask.Response:
+    if gamepad_uuid in _saved_gamepads:
+        del _saved_gamepads[gamepad_uuid]
+
+        return _flask.Response("No Content", 204)
+    
+    return _flask.Response(f"No gamepad with UUID of '{gamepad_uuid}' found.", 404)
+
 ### SWITCH ENDPOINTS ###
 
 @_app.route("/api/switches")
-def get_switches() -> tuple[_flask.Response, int]:
+def get_switches() -> _flask.Response:
     switches: list[dict[str, str]] = [{
         "address": address,
         "name": _saved_switches.get(address)
@@ -268,10 +296,10 @@ def get_switches() -> tuple[_flask.Response, int]:
         "address": None
     })
     
-    return _flask.jsonify(switches), 200
+    return _flask.jsonify(switches)
 
 
-@_app.route("/api/switches/<string:switch_address>/set_name", methods=["POST"])
+@_app.route("/api/switches/<string:switch_address>", methods=["POST"])
 def set_switch_name(switch_address: str) -> _flask.Response:
     ### Get params from request
     data = _flask.request.get_json()
@@ -289,6 +317,63 @@ def set_switch_name(switch_address: str) -> _flask.Response:
 
     return _flask.Response("OK", 200)
 
+@_app.route("/api/switches", methods=["DELETE"])
+def delete_switches() -> _flask.Response:
+    _saved_switches = {}
+
+    return _flask.Response("No Content", 204)
+
+@_app.route("/api/switches/<string:switch_address>", methods=["DELETE"])
+def delete_switch(switch_address: str) -> _flask.Response:
+    if switch_address in _saved_switches:
+        del _saved_switches[switch_address]
+
+        return _flask.Response("No Content", 204)
+    
+    return _flask.Response(f"No device with address '{switch_address}' found!", 404)
+
+
+### CONFIG ENDPOINTS ###
+
+@_app.route("/config")
+def get_config() -> _flask.Response:
+    return _flask.send_file(
+        BytesIO(_json.dumps({
+            "switches": _saved_switches,
+            "gamepads": _saved_gamepads
+        }, indent=4).encode("utf-8")),
+        mimetype="application/json",
+        as_attachment=True,
+        download_name="Switchify Config.json"
+    )
+
+@_app.route("/config", methods=["POST"])
+def post_config() -> _flask.Response:
+    global _saved_switches, _saved_gamepads
+    config = _json.loads(_flask.request.data.decode("utf-8"))
+
+    _saved_switches.update(config["switches"])
+    _saved_gamepads.update(config["gamepads"])
+
+    return _flask.Response("OK", 200)
+
+@_app.route("/config", methods=["PUT"])
+def put_config() -> _flask.Response:
+    global _saved_switches, _saved_gamepads
+    config = _json.loads(_flask.request.data.decode("utf-8"))
+
+    _saved_switches = config["switches"]
+    _saved_gamepads = config["gamepads"]
+
+    return _flask.Response("OK", 200)
+
+@_app.route("/config", methods=["DELETE"])
+def delete_config() -> _flask.Response:
+    global _saved_switches, _saved_gamepads
+    _saved_switches = {}
+    _saved_gamepads = {}
+
+    return _flask.Response("No Content", 204)
 
 if __name__ == "__main__":
     _app.run(
