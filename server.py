@@ -1,6 +1,4 @@
 #! /usr/local/bin/python3.9
-from os import getpid
-
 import nxbt as _nxbt
 import json as _json
 import flask as _flask
