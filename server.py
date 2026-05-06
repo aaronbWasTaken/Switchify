@@ -1,4 +1,6 @@
 #! /usr/local/bin/python3.9
+from os import getpid
+
 import nxbt as _nxbt
 import json as _json
 import flask as _flask
@@ -375,8 +377,43 @@ def delete_config() -> _flask.Response:
 
     return _flask.Response("No Content", 204)
 
+
+### Server Control ###
+@_app.route("/shutdown", methods=["GET"])
+def shutdown() -> _flask.Response:
+    # Disconnect all gamepads
+    for gamepad_uuid in _connected_gamepads.keys():
+        disconnect_gamepad(gamepad_uuid)
+    
+    # Save config to file
+    if _saved_switches or _saved_gamepads:
+        with open("config.json", "w") as config_file:
+            _json.dump({
+                "switches": _saved_switches,
+                "gamepads": _saved_gamepads
+            }, config_file, indent=4)
+    
+    # Safely shutdown Flask server by sending SIGINT to itself
+    # Basically simulates pressing Ctrl+C in the terminal as recommended from Flask itself
+
+    # Me: Hey Copilot, should i move the imports to the top of the file?
+    # Copilot: Nah, this is the only place where we need these and they are only needed when shutting down the server, so it makes more sense to keep them here in my opinion.
+    # Me: Thank you, Copilot!
+    from signal import SIGINT
+    from os import kill, getpid
+    kill(getpid(), SIGINT)
+
+    return _flask.Response("Shutting down server...", 200)
+
+
 if __name__ == "__main__":
-    _app.run(
-        "127.0.0.1",
-        8080
-    )
+    # Load config from file
+    try:
+        with open("config.json", "r") as config_file:
+            config: dict = _json.load(config_file)
+            _saved_switches = config.get("switches", {})
+            _saved_gamepads = config.get("gamepads", {})
+    except FileNotFoundError:
+        pass
+
+    _app.run("127.0.0.1", 8080)
