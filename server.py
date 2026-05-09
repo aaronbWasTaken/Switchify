@@ -1,4 +1,5 @@
 #! /usr/local/bin/python3.9
+
 import nxbt as _nxbt
 import json as _json
 import flask as _flask
@@ -8,6 +9,9 @@ import gamepad_manager as _gamepad_manager
 from io import BytesIO
 from typing import Optional, Any
 from flask_cors import CORS as _CORS
+from os import remove as remove_file
+
+CONFIG_FILE = "config.json"
 
 _pygame.init()
 _nx: _nxbt.Nxbt = _nxbt.Nxbt()
@@ -17,37 +21,37 @@ _CORS(_app)
 _saved_switches: dict[str, str] = {}
 """
 EXAMPLE FOR _saved_switches
-{
-    # Key is the bluetooth hardware id of the Nintendo Switch
-    # Value is the Switch's alias 
-    "12:34:56:78:9A:BC": "aaronbWasTaken's Nintendo Switch 2",
-    "FE:DC:BA:98:76:54": "My Nintendo Switch Lite"
-}
+    {
+        # Key is the bluetooth hardware id of the Nintendo Switch
+        # Value is the Switch's alias 
+        "12:34:56:78:9A:BC": "aaronbWasTaken's Nintendo Switch 2",
+        "FE:DC:BA:98:76:54": "My Nintendo Switch Lite"
+    }
 """
 _saved_gamepads: dict[str, dict] = {}
 """
 EXAMPLE FOR _saved_gamepads
-{
-    # Key is same as gamepad's UUID
-    "0123456789abcdef1011121314151617": {
-        "name": "Blue XBOX One Controller", # Name in the web interface
-        "color": (30, 40, 170), # RGB values of the gamepad in the web interface and on the switch
-        "last_gamepad_id": None, # Never was connected so it's None
-        "switch_mac_addess": "12:34:56:78:9A:BC"
+    {
+        # Key is same as gamepad's UUID
+        "0123456789abcdef1011121314151617": {
+            "name": "Blue XBOX One Controller", # Name in the web interface
+            "color": (30, 40, 170), # RGB values of the gamepad in the web interface and on the switch
+            "last_gamepad_id": None, # Never was connected so it's None
+            "switch_mac_addess": "12:34:56:78:9A:BC"
+        }
     }
-}
 """
-_connected_gamepads: dict[int, dict] = {}
+_gamepad_managers: dict[str, _gamepad_manager.GamepadManager] = {}
 """
-EXAMPLE FOR _connected_gamepads
-{
-    # Key is same as gamepad's UUID
-    "050082795e040000200b000023050000": {
-        "gamepad": _gamepad.Gamepad(0), # Gamepad Object
-        "manager": _gamepad_manager.GamepadManager(_nx, _gamepad.Gamepad(0)), # GamepadManager Object
+EXAMPLE FOR _gamepad_managers
+    {
+        # Key is same as gamepad's UUID
+        "050082795e040000200b000023050000": _gamepad_manager.GamepadManager(_nx, _gamepad.Gamepad(0))
     }
-}
 """
+
+
+### DEPENDENCY FUNCTIONS ###
 
 def hex_to_rgb(hex_color: str) -> tuple[int, int, int]:
     ### THIS IS THE MOST JAVASCRIPT WAY OF DOING IT I ASSUME, THIS AINT GIVING A SHIT WHAT STRING YOU FEED IT XD
@@ -85,11 +89,11 @@ def get_gamepad_by_uuid(gamepad_uuid: str) -> _flask.Response:
             "uuid": gamepad_uuid,
             "name": gamepad["name"],
             "last_gamepad_id": gamepad["last_gamepad_id"],
-            "connected": gamepad_uuid in _connected_gamepads,
+            "connected": gamepad_uuid in _gamepad_managers,
             "switch_mac_address": gamepad["switch_mac_address"],
             "color": None if gamepad["color"] is None else rgb_to_hex(*gamepad["color"]),
             "available": (
-                gamepad_uuid not in _connected_gamepads and
+                gamepad_uuid not in _gamepad_managers and
                 gamepad["last_gamepad_id"] is not None and
                 gamepad["last_gamepad_id"] < _pygame.joystick.get_count() and
                 _pygame.joystick.Joystick(gamepad["last_gamepad_id"]).get_guid() == gamepad_uuid
@@ -123,9 +127,9 @@ def get_gamepads() -> _flask.Response:
     for gamepad_uuid, gamepad in _saved_gamepads.items():
         my_gamepad: dict[str, Any] = {k: v for k, v in gamepad.items()}
         my_gamepad["uuid"] = gamepad_uuid
-        my_gamepad["connected"] = gamepad_uuid in _connected_gamepads
+        my_gamepad["connected"] = gamepad_uuid in _gamepad_managers
         my_gamepad["available"] = (
-            gamepad_uuid not in _connected_gamepads and
+            gamepad_uuid not in _gamepad_managers and
             gamepad["last_gamepad_id"] is not None and
             gamepad["last_gamepad_id"] < _pygame.joystick.get_count() and
             _pygame.joystick.Joystick(gamepad["last_gamepad_id"]).get_guid() == gamepad_uuid
@@ -162,7 +166,7 @@ def connect_gamepad(gamepad_uuid: str) -> _flask.Response:
     if gamepad_uuid not in _saved_gamepads:
         return _flask.Response(f"No gamepad with UUID of '{gamepad_uuid}' found.", 404)
     
-    if len(_nx.get_available_adapters()) <= len(_connected_gamepads):
+    if len(_nx.get_available_adapters()) <= len(_gamepad_managers):
         return _flask.Response("Not enough Bluteooth adapters.", 500)
 
     gamepad: dict[str, Any] = _saved_gamepads[gamepad_uuid]
@@ -174,43 +178,36 @@ def connect_gamepad(gamepad_uuid: str) -> _flask.Response:
     ):
         return _flask.Response(f"Gamepad with UUID of {gamepad_uuid} is not available to connect." +
         "It may not be connected at all or already be connected to a switch.", 400)
-    
-    ### Setting up gamepad and manager
-    my_gamepad: dict[str, Any] = { "gamepad": None, "manager": None }
 
     try:
-        my_gamepad["gamepad"] = _gamepad.Gamepad(gamepad["last_gamepad_id"])
-    except:
-        return _flask.Response(f"Gamepad could not be initialized.", 500)
+        manager: _gamepad_manager.GamepadManager = _gamepad_manager.GamepadManager(
+            _nx, 
+            gamepad_uuid, 
+            gamepad["color"],
+            gamepad["switch_mac_address"],
+            45 # Disconnect Timeout
+        )
+    except RuntimeError:
+        return _flask.Response(f"No gamepad with UUID of '{gamepad_uuid}' found.", 404)
     
-    my_gamepad["manager"] = _gamepad_manager.GamepadManager(
-        _nx, 
-        my_gamepad["gamepad"], 
-        gamepad["color"],
-        gamepad["switch_mac_address"]
-    )
 
     ### Starting manager
-    my_gamepad["manager"].start_manager()
+    manager.start_manager()
 
     ### Store connection details
-    _connected_gamepads[gamepad_uuid] = my_gamepad
+    _gamepad_managers[gamepad_uuid] = manager
 
     return get_gamepad_by_uuid(gamepad_uuid)
 
 @_app.route("/api/gamepads/<string:gamepad_uuid>/disconnect")
 def disconnect_gamepad(gamepad_uuid: str) -> _flask.Response:
-    gamepad = _connected_gamepads.get(gamepad_uuid)
-
-    if gamepad is not None:
-        manager = gamepad.get("manager")
-        if isinstance(manager, _gamepad_manager.GamepadManager):
-            manager.stop_manager()
-
-            # Delete controller entry
-            del _connected_gamepads[gamepad_uuid]
+    if gamepad_uuid in _gamepad_managers:
+        _gamepad_managers[gamepad_uuid].stop_manager()
+        del _gamepad_managers[gamepad_uuid]
         
-    return get_gamepad_by_uuid(gamepad_uuid)
+        return get_gamepad_by_uuid(gamepad_uuid)
+    
+    return _flask.Response(f"No gamepad with UUID of '{gamepad_uuid}' found.", 404)
 
 @_app.route("/api/gamepads/<string:gamepad_uuid>/set_config", methods=["POST"])
 def set_gamepad_config(gamepad_uuid: str) -> _flask.Response:
@@ -244,6 +241,7 @@ def set_gamepad_config(gamepad_uuid: str) -> _flask.Response:
         return get_gamepad_by_uuid(gamepad_uuid)
     
     ### Create gamepad config
+    _pygame.event.pump()
     for gamepad_id in range(_pygame.joystick.get_count()):
         joystick: _pygame.joystick.JoystickType = _pygame.joystick.Joystick(gamepad_id)
 
@@ -275,6 +273,14 @@ def delete_gamepad_config(gamepad_uuid: str) -> _flask.Response:
         return _flask.Response("No Content", 204)
     
     return _flask.Response(f"No gamepad with UUID of '{gamepad_uuid}' found.", 404)
+
+@_app.route("/api/gamepads/<string:gamepad_uuid>/get_timeout")
+def get_gamepad_timeout(gamepad_uuid: str) -> _flask.Response:
+    if gamepad_uuid in _gamepad_managers:
+        return _flask.jsonify(_gamepad_managers[gamepad_uuid].get_connection_timeout())
+    
+    return _flask.Response(f"No gamepad with UUID of '{gamepad_uuid}' found.", 404)
+
 
 ### SWITCH ENDPOINTS ###
 
@@ -376,20 +382,17 @@ def delete_config() -> _flask.Response:
     return _flask.Response("No Content", 204)
 
 
-### Server Control ###
+### SERVER CONTROL ###
+
 @_app.route("/shutdown", methods=["GET"])
 def shutdown() -> _flask.Response:
     # Disconnect all gamepads
-    for gamepad_uuid in _connected_gamepads.keys():
+    # Clone UUIDs first, then iterate over them
+    for gamepad_uuid in tuple(_gamepad_managers):
         disconnect_gamepad(gamepad_uuid)
     
     # Save config to file
-    if _saved_switches or _saved_gamepads:
-        with open("config.json", "w") as config_file:
-            _json.dump({
-                "switches": _saved_switches,
-                "gamepads": _saved_gamepads
-            }, config_file, indent=4)
+    create_config_file()
     
     # Safely shutdown Flask server by sending SIGINT to itself
     # Basically simulates pressing Ctrl+C in the terminal as recommended from Flask itself
@@ -402,6 +405,29 @@ def shutdown() -> _flask.Response:
     kill(getpid(), SIGINT)
 
     return _flask.Response("Shutting down server...", 200)
+
+
+@_app.route("/create_config_file")
+def create_config_file() -> _flask.Response:
+    if _saved_switches or _saved_gamepads:
+        with open(CONFIG_FILE, "w") as config_file:
+            _json.dump({
+                "switches": _saved_switches,
+                "gamepads": _saved_gamepads
+            }, config_file, indent=4)
+
+        return _flask.Response("Created", 201)
+    
+    return _flask.Response("No Content to save", 204)
+
+@_app.route("/delete_config_file", methods=["DELETE", "GET"])
+def delete_config_file() -> _flask.Response:
+    try:
+        remove_file(CONFIG_FILE)
+    except FileNotFoundError:
+        pass
+
+    return _flask.Response("OK", 200)
 
 
 if __name__ == "__main__":
