@@ -409,16 +409,13 @@ def shutdown() -> _flask.Response:
 
 @_app.route("/create_config_file")
 def create_config_file() -> _flask.Response:
-    if _saved_switches or _saved_gamepads:
-        with open(CONFIG_FILE, "w") as config_file:
-            _json.dump({
-                "switches": _saved_switches,
-                "gamepads": _saved_gamepads
-            }, config_file, indent=4)
+    with open(CONFIG_FILE, "w") as config_file:
+        _json.dump({
+            "switches": _saved_switches,
+            "gamepads": _saved_gamepads
+        }, config_file, indent=4)
 
-        return _flask.Response("Created", 201)
-    
-    return _flask.Response("No Content to save", 204)
+    return _flask.Response("Created", 201)
 
 @_app.route("/delete_config_file", methods=["DELETE", "GET"])
 def delete_config_file() -> _flask.Response:
@@ -429,6 +426,10 @@ def delete_config_file() -> _flask.Response:
 
     return _flask.Response("OK", 200)
 
+
+@_app.route("/")
+def index() -> _flask.Response:
+    return _flask.render_template("client.html")
 
 if __name__ == "__main__":
     # Load config from file

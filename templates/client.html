@@ -1,0 +1,1217 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Switchify</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link
+    href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;500;700&family=DM+Sans:wght@300;400;500&display=swap"
+    rel="stylesheet">
+  <style>
+    *,
+    *::before,
+    *::after {
+      box-sizing: border-box;
+      margin: 0;
+      padding: 0
+    }
+
+    :root {
+      --bg: #0c0c0f;
+      --surface: #141418;
+      --surface2: #1c1c22;
+      --surface3: #242430;
+      --border: #2e2e3a;
+      --border2: #3e3e4e;
+      --text: #e2e2ee;
+      --muted: #666678;
+      --dimmed: #3a3a4a;
+      --accent: #e60012;
+      --accent-d: #b0000e;
+      --green: #00c47a;
+      --green-bg: rgba(0, 196, 122, .1);
+      --blue: #4b9eff;
+      --blue-bg: rgba(75, 158, 255, .1);
+      --mono: 'JetBrains Mono', monospace;
+      --sans: 'DM Sans', sans-serif;
+      --r: 6px;
+      --r-lg: 10px;
+    }
+
+    html {
+      background: var(--bg);
+      color: var(--text);
+      font-family: var(--sans);
+      font-size: 14px;
+      line-height: 1.6;
+    }
+
+    body {
+      min-height: 100vh;
+      background:
+        radial-gradient(ellipse 60% 40% at 80% 0%, rgba(230, 0, 18, .07) 0%, transparent 70%),
+        radial-gradient(ellipse 40% 30% at 10% 90%, rgba(75, 158, 255, .05) 0%, transparent 70%),
+        var(--bg);
+    }
+
+    /* dot grid */
+    body::before {
+      content: '';
+      position: fixed;
+      inset: 0;
+      background-image: radial-gradient(circle, rgba(255, 255, 255, .04) 1px, transparent 1px);
+      background-size: 28px 28px;
+      pointer-events: none;
+      z-index: 0;
+    }
+
+    .wrap {
+      position: relative;
+      z-index: 1;
+      max-width: 1100px;
+      margin: 0 auto;
+      padding: 28px 24px 60px;
+    }
+
+    /* ── Header ── */
+    header {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      padding: 0 0 28px;
+      border-bottom: 1px solid var(--border);
+      margin-bottom: 28px;
+    }
+
+    .logo {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+    }
+
+    .logo-icon {
+      width: 36px;
+      height: 36px;
+      background: var(--accent);
+      border-radius: var(--r);
+      display: grid;
+      place-items: center;
+      flex-shrink: 0;
+    }
+
+    .logo-icon svg {
+      width: 20px;
+      height: 20px;
+      fill: #fff;
+    }
+
+    .logo h1 {
+      font-family: var(--mono);
+      font-size: 18px;
+      font-weight: 700;
+      letter-spacing: -.02em;
+    }
+
+    .logo h1 span {
+      color: var(--accent);
+    }
+
+    .logo .version {
+      font-family: var(--mono);
+      font-size: 10px;
+      color: var(--muted);
+      letter-spacing: .06em;
+      margin-left: 8px;
+      vertical-align: middle;
+    }
+
+    .header-right {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+    }
+
+    .pill {
+      display: inline-flex;
+      align-items: center;
+      gap: 5px;
+      padding: 4px 10px;
+      border-radius: 20px;
+      font-family: var(--mono);
+      font-size: 11px;
+      font-weight: 500;
+      border: 1px solid;
+      transition: all .2s;
+    }
+
+    .pill.online {
+      border-color: var(--green);
+      color: var(--green);
+      background: var(--green-bg);
+    }
+
+    .pill.offline {
+      border-color: var(--accent);
+      color: var(--accent);
+      background: rgba(230, 0, 18, .1);
+    }
+
+    .pill.pending {
+      border-color: var(--dimmed);
+      color: var(--muted);
+      background: transparent;
+    }
+
+    .pill .dot {
+      width: 6px;
+      height: 6px;
+      border-radius: 50%;
+      background: currentColor;
+    }
+
+    .pill.online .dot {
+      animation: pulse-dot 2s ease-in-out infinite;
+    }
+
+    @keyframes pulse-dot {
+
+      0%,
+      100% {
+        opacity: 1
+      }
+
+      50% {
+        opacity: .4
+      }
+    }
+
+    /* ── Buttons ── */
+    button {
+      cursor: pointer;
+      border: 1px solid var(--border2);
+      background: var(--surface2);
+      color: var(--text);
+      font-family: var(--sans);
+      font-size: 13px;
+      padding: 7px 14px;
+      border-radius: var(--r);
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+      transition: background .15s, border-color .15s, transform .1s;
+    }
+
+    button:hover {
+      background: var(--surface3);
+      border-color: var(--border2);
+    }
+
+    button:active {
+      transform: scale(.98);
+    }
+
+    button:disabled {
+      opacity: .4;
+      cursor: default;
+    }
+
+    button.danger {
+      color: var(--accent);
+      border-color: rgba(230, 0, 18, .3);
+    }
+
+    button.danger:hover {
+      background: rgba(230, 0, 18, .1);
+    }
+
+    button.primary {
+      background: var(--accent);
+      border-color: var(--accent);
+      color: #fff;
+    }
+
+    button.primary:hover {
+      background: var(--accent-d);
+      border-color: var(--accent-d);
+    }
+
+    button.ghost {
+      background: transparent;
+      border-color: transparent;
+      color: var(--muted);
+      padding: 6px 8px;
+    }
+
+    button.ghost:hover {
+      color: var(--text);
+      background: var(--surface2);
+    }
+
+    button.sm {
+      font-size: 12px;
+      padding: 5px 10px;
+    }
+
+    button.icon {
+      padding: 6px;
+      min-width: 30px;
+      justify-content: center;
+    }
+
+    /* ── Layout ── */
+    .main-grid {
+      display: grid;
+      grid-template-columns: 1fr 300px;
+      gap: 20px;
+      align-items: start;
+    }
+
+    @media(max-width:720px) {
+      .main-grid {
+        grid-template-columns: 1fr;
+      }
+    }
+
+    /* ── Section header ── */
+    .section-head {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      margin-bottom: 14px;
+    }
+
+    .section-title {
+      font-family: var(--mono);
+      font-size: 11px;
+      font-weight: 500;
+      color: var(--muted);
+      letter-spacing: .1em;
+      text-transform: uppercase;
+      display: flex;
+      align-items: center;
+      gap: 7px;
+    }
+
+    .section-title::before {
+      content: '';
+      display: block;
+      width: 3px;
+      height: 14px;
+      background: var(--accent);
+      border-radius: 2px;
+    }
+
+    /* ── Gamepad list (Table-like Multiline) ── */
+    .gamepads-grid {
+      display: flex;
+      flex-direction: column;
+      gap: 16px;
+    }
+
+    .gp-card {
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: var(--r-lg);
+      padding: 16px 20px;
+      display: flex;
+      flex-direction: column;
+      gap: 14px;
+      transition: border-color .2s;
+      animation: fade-in .2s ease both;
+    }
+
+    .gp-card:hover {
+      border-color: var(--border2);
+    }
+
+    .gp-card.connected {
+      border-color: rgba(0, 196, 122, .25);
+    }
+
+    @keyframes fade-in {
+      from {
+        opacity: 0;
+        transform: translateY(4px)
+      }
+
+      to {
+        opacity: 1;
+        transform: none
+      }
+    }
+
+    /* Card Header */
+    .gp-header {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      border-bottom: 1px solid var(--border);
+      padding-bottom: 12px;
+    }
+
+    .gp-name {
+      font-size: 15px;
+      font-weight: 500;
+      display: flex;
+      align-items: center;
+      gap: 10px;
+    }
+
+    .color-dot {
+      width: 12px;
+      height: 12px;
+      border-radius: 50%;
+      flex-shrink: 0;
+      border: 1px solid rgba(255, 255, 255, .15);
+    }
+
+    .status-badge {
+      font-family: var(--mono);
+      font-size: 10px;
+      font-weight: 500;
+      padding: 3px 8px;
+      border-radius: 20px;
+      white-space: nowrap;
+      flex-shrink: 0;
+      border: 1px solid;
+    }
+
+    .status-badge.connected {
+      color: var(--green);
+      background: var(--green-bg);
+      border-color: rgba(0, 196, 122, .3);
+    }
+
+    .status-badge.available {
+      color: var(--blue);
+      background: var(--blue-bg);
+      border-color: rgba(75, 158, 255, .3);
+    }
+
+    .status-badge.unavailable {
+      color: var(--muted);
+      background: transparent;
+      border-color: var(--dimmed);
+    }
+
+    /* Card Details Grid (Table Structure) */
+    .gp-details {
+      display: grid;
+      grid-template-columns: max-content 1fr;
+      row-gap: 8px;
+      column-gap: 16px;
+      align-items: center;
+      background: var(--surface2);
+      padding: 12px 16px;
+      border-radius: var(--r);
+    }
+
+    .gp-detail-label {
+      color: var(--muted);
+      font-size: 11px;
+      text-transform: uppercase;
+      letter-spacing: .05em;
+      font-family: var(--mono);
+    }
+
+    .gp-detail-value {
+      font-size: 13px;
+    }
+
+    .gp-detail-value code {
+      font-family: var(--mono);
+      color: var(--text);
+      font-size: 12px;
+    }
+
+    .gp-sw-tag {
+      color: var(--green);
+      display: inline-flex;
+      align-items: center;
+      gap: 4px;
+    }
+
+    /* Card Actions */
+    .gp-actions {
+      display: flex;
+      justify-content: flex-end;
+      gap: 8px;
+      padding-top: 4px;
+    }
+
+    /* refresh row */
+    .gp-card.refresh-card {
+      border-style: dashed;
+      cursor: pointer;
+      justify-content: center;
+      align-items: center;
+      padding: 24px 16px;
+      gap: 10px;
+      color: var(--muted);
+      user-select: none;
+      flex-direction: column;
+    }
+
+    .gp-card.refresh-card:hover {
+      border-color: var(--border2);
+      color: var(--text);
+    }
+
+    .gp-card.refresh-card:hover .refresh-icon {
+      transform: rotate(180deg);
+    }
+
+    .gp-card.refresh-card:active {
+      transform: scale(.98);
+    }
+
+    .refresh-icon {
+      width: 24px;
+      height: 24px;
+      transition: transform .4s ease;
+      flex-shrink: 0;
+    }
+
+    .refresh-icon svg {
+      width: 24px;
+      height: 24px;
+      stroke: currentColor;
+    }
+
+    .refresh-label {
+      font-family: var(--mono);
+      font-size: 11px;
+      letter-spacing: .06em;
+      text-transform: uppercase;
+    }
+
+    .gp-card.refresh-card.spinning .refresh-icon {
+      animation: spin .7s linear infinite;
+    }
+
+    @keyframes spin {
+      to {
+        transform: rotate(360deg)
+      }
+    }
+
+    /* ── Switch panel ── */
+    .switch-panel {
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: var(--r-lg);
+      overflow: hidden;
+    }
+
+    .switch-item {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      padding: 12px 14px;
+      border-bottom: 1px solid var(--border);
+      animation: fade-in .2s ease both;
+    }
+
+    .switch-item:last-child {
+      border-bottom: none;
+    }
+
+    .switch-icon {
+      width: 32px;
+      height: 32px;
+      background: var(--surface2);
+      border: 1px solid var(--border);
+      border-radius: var(--r);
+      display: grid;
+      place-items: center;
+      flex-shrink: 0;
+    }
+
+    .switch-icon svg {
+      width: 16px;
+      height: 16px;
+      fill: var(--muted);
+    }
+
+    .switch-info {
+      flex: 1;
+      min-width: 0;
+    }
+
+    .switch-name {
+      font-size: 13px;
+      font-weight: 500;
+      overflow: hidden;
+      text-overflow: ellipsis;
+      white-space: nowrap;
+    }
+
+    .switch-addr {
+      font-family: var(--mono);
+      font-size: 10px;
+      color: var(--muted);
+    }
+
+    .switch-actions {
+      display: flex;
+      gap: 4px;
+      flex-shrink: 0;
+    }
+
+    .empty-state {
+      padding: 32px 16px;
+      text-align: center;
+      color: var(--muted);
+      font-size: 13px;
+      line-height: 1.8;
+    }
+
+    .empty-state svg {
+      width: 32px;
+      height: 32px;
+      fill: var(--dimmed);
+      margin-bottom: 8px;
+      display: block;
+      margin-left: auto;
+      margin-right: auto;
+    }
+
+    /* ── Config section ── */
+    .config-section {
+      margin-top: 20px;
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: var(--r-lg);
+      padding: 16px 18px;
+    }
+
+    .config-actions {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 8px;
+    }
+
+    /* ── Modal ── */
+    .modal-bg {
+      position: fixed;
+      inset: 0;
+      background: rgba(0, 0, 0, .7);
+      backdrop-filter: blur(4px);
+      display: none;
+      align-items: center;
+      justify-content: center;
+      z-index: 100;
+      padding: 20px;
+    }
+
+    .modal-bg.open {
+      display: flex;
+    }
+
+    .modal {
+      background: var(--surface);
+      border: 1px solid var(--border2);
+      border-radius: var(--r-lg);
+      padding: 24px;
+      width: 100%;
+      max-width: 360px;
+      animation: modal-in .2s ease;
+    }
+
+    @keyframes modal-in {
+      from {
+        opacity: 0;
+        transform: scale(.96)translateY(8px)
+      }
+
+      to {
+        opacity: 1;
+        transform: none
+      }
+    }
+
+    .modal-header {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      margin-bottom: 20px;
+    }
+
+    .modal-title {
+      font-family: var(--mono);
+      font-size: 14px;
+      font-weight: 700;
+    }
+
+    .modal-uuid {
+      font-family: var(--mono);
+      font-size: 10px;
+      color: var(--dimmed);
+      margin-bottom: 18px;
+      word-break: break-all;
+    }
+
+    .field {
+      display: flex;
+      flex-direction: column;
+      gap: 6px;
+      margin-bottom: 16px;
+    }
+
+    .field label {
+      font-size: 11px;
+      color: var(--muted);
+      font-family: var(--mono);
+      letter-spacing: .05em;
+      text-transform: uppercase;
+    }
+
+    .field input,
+    .field select {
+      background: var(--surface2);
+      border: 1px solid var(--border);
+      color: var(--text);
+      font-family: var(--sans);
+      font-size: 13px;
+      padding: 8px 10px;
+      border-radius: var(--r);
+      width: 100%;
+      transition: border-color .15s;
+      outline: none;
+    }
+
+    .field input:focus,
+    .field select:focus {
+      border-color: var(--border2);
+    }
+
+    .field select option {
+      background: var(--surface2);
+    }
+
+    .color-row {
+      display: flex;
+      gap: 8px;
+    }
+
+    .color-row input[type=color] {
+      width: 40px;
+      height: 36px;
+      padding: 2px;
+      cursor: pointer;
+      background: var(--surface2);
+      border: 1px solid var(--border);
+      border-radius: var(--r);
+      flex-shrink: 0;
+    }
+
+    .color-row input[type=text] {
+      flex: 1;
+      font-family: var(--mono);
+      font-size: 12px;
+    }
+
+    .modal-footer {
+      display: flex;
+      gap: 8px;
+      margin-top: 6px;
+    }
+
+    .modal-footer button {
+      flex: 1;
+      justify-content: center;
+    }
+
+    /* ── Rename inline ── */
+    .rename-form {
+      display: flex;
+      gap: 6px;
+      flex: 1;
+      min-width: 0;
+    }
+
+    .rename-form input {
+      flex: 1;
+      background: var(--surface2);
+      border: 1px solid var(--border2);
+      color: var(--text);
+      font-family: var(--sans);
+      font-size: 12px;
+      padding: 4px 8px;
+      border-radius: var(--r);
+      outline: none;
+      min-width: 0;
+    }
+
+    /* ── Scrollbar ── */
+    ::-webkit-scrollbar {
+      width: 6px;
+    }
+
+    ::-webkit-scrollbar-track {
+      background: var(--bg);
+    }
+
+    ::-webkit-scrollbar-thumb {
+      background: var(--border2);
+      border-radius: 3px;
+    }
+  </style>
+</head>
+
+<body>
+  <div class="wrap">
+
+    <header>
+      <div class="logo">
+        <div class="logo-icon">
+          <svg viewBox="0 0 24 24">
+            <path
+              d="M17 3H7a4 4 0 0 0-4 4v10a4 4 0 0 0 4 4h2v-4h6v4h2a4 4 0 0 0 4-4V7a4 4 0 0 0-4-4zM8 13H6v-2h2v2zm0-4H6V7h2v2zm4 4h-2v-2h2v2zm0-4h-2V7h2v2zm4 4h-2v-2h2v2zm0-4h-2V7h2v2z" />
+          </svg>
+        </div>
+        <h1>Switch<span>ify</span></h1>
+      </div>
+      <div class="header-right">
+        <div id="server-status" class="pill pending">
+          <div class="dot"></div>
+          <span>connecting</span>
+        </div>
+        <button class="danger sm" id="btn-shutdown">
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"
+            stroke-linecap="round">
+            <path d="M18.36 6.64A9 9 0 1 1 5.64 6.64" />
+            <line x1="12" y1="2" x2="12" y2="12" />
+          </svg>
+          Shutdown
+        </button>
+      </div>
+    </header>
+
+    <div class="main-grid">
+
+      <div>
+        <div class="section-head">
+          <div class="section-title">Gamepads</div>
+        </div>
+        <div class="gamepads-grid" id="gamepads-grid">
+          <div class="empty-state">
+            <svg viewBox="0 0 24 24">
+              <path
+                d="M17 3H7a4 4 0 0 0-4 4v10a4 4 0 0 0 4 4h2v-4h6v4h2a4 4 0 0 0 4-4V7a4 4 0 0 0-4-4zM8 13H6v-2h2v2zm0-4H6V7h2v2zm4 4h-2v-2h2v2zm0-4h-2V7h2v2zm4 4h-2v-2h2v2zm0-4h-2V7h2v2z" />
+            </svg>
+            Loading gamepads…
+          </div>
+        </div>
+      </div>
+
+      <div>
+        <div class="section-head">
+          <div class="section-title">Nintendo Switches</div>
+        </div>
+        <div class="switch-panel" id="switch-panel">
+          <div class="empty-state">
+            <svg viewBox="0 0 24 24">
+              <path
+                d="M21 6H3a1 1 0 0 0-1 1v10a1 1 0 0 0 1 1h18a1 1 0 0 0 1-1V7a1 1 0 0 0-1-1zm-13 9H6v-2h2v2zm0-4H6V9h2v2zm12 4H10V9h10v6z" />
+            </svg>
+            No paired Switches
+          </div>
+        </div>
+
+        <div class="config-section" style="margin-top:20px;">
+          <div class="section-head" style="margin-bottom:12px;">
+            <div class="section-title">Config</div>
+          </div>
+          <div class="config-actions">
+            <button class="sm" id="btn-save-disk">
+              <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"
+                stroke-linecap="round">
+                <path d="M19 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11l5 5v11a2 2 0 0 1-2 2z" />
+                <polyline points="17 21 17 13 7 13 7 21" />
+                <polyline points="7 3 7 8 15 8" />
+              </svg>
+              Save to disk
+            </button>
+            <button class="sm" id="btn-export">
+              <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"
+                stroke-linecap="round">
+                <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4" />
+                <polyline points="7 10 12 15 17 10" />
+                <line x1="12" y1="15" x2="12" y2="3" />
+              </svg>
+              Export
+            </button>
+            <button class="sm" id="btn-import">
+              <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"
+                stroke-linecap="round">
+                <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4" />
+                <polyline points="17 8 12 3 7 8" />
+                <line x1="12" y1="3" x2="12" y2="15" />
+              </svg>
+              Import
+            </button>
+            <button class="sm danger" id="btn-clear-config">
+              <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"
+                stroke-linecap="round">
+                <polyline points="3 6 5 6 21 6" />
+                <path d="M19 6l-1 14H6L5 6" />
+                <path d="M10 11v6" />
+                <path d="M14 11v6" />
+                <path d="M9 6V4h6v2" />
+              </svg>
+              Clear all
+            </button>
+            <input type="file" id="import-input" accept=".json,application/json" style="display:none">
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <div class="modal-bg" id="modal-bg">
+    <div class="modal">
+      <div class="modal-header">
+        <div class="modal-title">Configure Gamepad</div>
+        <button class="ghost icon" id="modal-close" aria-label="Close">
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"
+            stroke-linecap="round">
+            <line x1="18" y1="6" x2="6" y2="18" />
+            <line x1="6" y1="6" x2="18" y2="18" />
+          </svg>
+        </button>
+      </div>
+      <div class="modal-uuid" id="modal-uuid"></div>
+      <div class="field">
+        <label>Display name</label>
+        <input type="text" id="field-name" placeholder="My Controller">
+      </div>
+      <div class="field">
+        <label>Color</label>
+        <div class="color-row">
+          <input type="color" id="field-color-picker" value="#ffffff">
+          <input type="text" id="field-color-hex" placeholder="#ffffff" maxlength="7">
+        </div>
+      </div>
+      <div class="field">
+        <label>Target Switch</label>
+        <select id="field-switch"></select>
+      </div>
+      <div class="modal-footer">
+        <button id="modal-cancel">Cancel</button>
+        <button class="primary" id="modal-save">Save</button>
+      </div>
+    </div>
+  </div>
+
+  <script>
+    const BASE = 'http://localhost:8080';
+    let _gamepads = [], _switches = [], _editingUUID = null;
+
+    async function req(path, opts = {}) {
+      const r = await fetch(BASE + path, opts);
+      if (!r.ok) throw await r.text();
+      const ct = r.headers.get('content-type') || '';
+      return ct.includes('json') ? r.json() : r.text();
+    }
+
+    // ── Data loading ──────────────────────────────────────────
+
+    async function loadGamepads() {
+      try {
+        _gamepads = await req('/api/gamepads');
+        setStatus(true);
+        renderGamepads();
+      } catch {
+        setStatus(false);
+        renderGamepads(true);
+      }
+    }
+
+    async function loadSwitches() {
+      try {
+        _switches = await req('/api/switches');
+        renderSwitches();
+      } catch { }
+    }
+
+    async function loadAll() {
+      await Promise.all([loadGamepads(), loadSwitches()]);
+    }
+
+    // ── Status ────────────────────────────────────────────────
+
+    function setStatus(online) {
+      const el = document.getElementById('server-status');
+      el.className = 'pill ' + (online ? 'online' : 'offline');
+      el.querySelector('span').textContent = online ? 'online' : 'offline';
+    }
+
+    // ── Gamepads ──────────────────────────────────────────────
+
+    function gpStatus(gp) {
+      if (gp.connected) return 'connected';
+      if (gp.available) return 'available';
+      return 'unavailable';
+    }
+
+    function renderGamepads(err = false) {
+      const grid = document.getElementById('gamepads-grid');
+      if (err) {
+        grid.innerHTML = `<div class="empty-state"><svg viewBox="0 0 24 24"><path d="M17 3H7a4 4 0 0 0-4 4v10a4 4 0 0 0 4 4h2v-4h6v4h2a4 4 0 0 0 4-4V7a4 4 0 0 0-4-4z"/></svg>Cannot reach server at ${BASE}</div>`;
+        return;
+      }
+
+      const emptyMsg = _gamepads.length ? '' :
+        `<div style="font-size:13px;color:var(--muted);text-align:center;line-height:1.7">No controllers detected.<br>Plug in a gamepad.</div>`;
+
+      grid.innerHTML = _gamepads.map(gp => {
+        const st = gpStatus(gp);
+        const canToggle = st === 'available' || st === 'connected';
+        const sw = _switches.find(s => s.address === gp.switch_mac_address);
+        const swLabel = gp.connected
+          ? (sw ? (sw.name || sw.address) : gp.switch_mac_address)
+          : (sw ? (sw.name || sw.address) : 'Unpaired');
+
+        return `
+<div class="gp-card ${st === 'connected' ? 'connected' : ''}" data-uuid="${gp.uuid}">
+  <div class="gp-header">
+    <div class="gp-name">
+      ${gp.color ? `<div class="color-dot" style="background:${gp.color}"></div>` : ''}
+      <span title="${gp.name}">${gp.name}</span>
+    </div>
+    <span class="status-badge ${st}">${st}</span>
+  </div>
+  
+  <div class="gp-details">
+    <div class="gp-detail-label">UUID</div>
+    <div class="gp-detail-value"><code>${gp.uuid}</code></div>
+    
+    <div class="gp-detail-label">Switch</div>
+    <div class="gp-detail-value">
+      <span class="${gp.switch_mac_address ? 'gp-sw-tag' : ''}">
+        ${gp.switch_mac_address ? swLabel : '<em style="color:var(--muted)">Unpaired</em>'}
+      </span>
+    </div>
+  </div>
+
+  <div class="gp-actions">
+    ${canToggle
+            ? `<button class="sm ${gp.connected ? '' : 'primary'}" data-action="${gp.connected ? 'disconnect' : 'connect'}" data-uuid="${gp.uuid}">${gp.connected ? 'Disconnect' : 'Connect'}</button>`
+            : `<button class="sm" disabled>Unavailable</button>`}
+    <button class="sm icon" data-action="edit" data-uuid="${gp.uuid}" title="Configure">
+      <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/><path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"/></svg>
+    </button>
+    ${gp.switch_mac_address ? `<button class="sm icon danger" data-action="delete" data-uuid="${gp.uuid}" title="Delete config">
+      <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><polyline points="3 6 5 6 21 6"/><path d="M19 6l-1 14H6L5 6"/></svg>
+    </button>` : ''}
+  </div>
+</div>`;
+      }).join('') + `
+<div class="gp-card refresh-card" id="refresh-card" data-action="refresh" title="Scan for gamepads">
+  ${emptyMsg}
+  <div class="refresh-icon">
+    <svg viewBox="0 0 24 24" fill="none" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="23 4 23 10 17 10"/><path d="M20.49 15a9 9 0 1 1-.44-8.27"/></svg>
+  </div>
+  <div class="refresh-label">Scan</div>
+</div>`;
+    }
+
+    // ── Switches ──────────────────────────────────────────────
+
+    function renderSwitches() {
+      const panel = document.getElementById('switch-panel');
+      const known = _switches.filter(s => s.address);
+      if (!known.length) {
+        panel.innerHTML = `<div class="empty-state"><svg viewBox="0 0 24 24"><path d="M21 6H3a1 1 0 0 0-1 1v10a1 1 0 0 0 1 1h18a1 1 0 0 0 1-1V7a1 1 0 0 0-1-1zm-13 9H6v-2h2v2zm0-4H6V9h2v2zm12 4H10V9h10v6z"/></svg>No paired Switches yet</div>`;
+        return;
+      }
+      panel.innerHTML = known.map(sw => `
+<div class="switch-item" data-addr="${sw.address}">
+  <div class="switch-icon">
+    <svg viewBox="0 0 24 24"><path d="M21 6H3a1 1 0 0 0-1 1v10a1 1 0 0 0 1 1h18a1 1 0 0 0 1-1V7a1 1 0 0 0-1-1zm-13 9H6v-2h2v2zm0-4H6V9h2v2zm12 4H10V9h10v6z"/></svg>
+  </div>
+  <div class="switch-info" id="sw-info-${sw.address.replace(/:/g, '_')}">
+    <div class="switch-name">${sw.name || '<em style="color:var(--muted);font-style:normal">Unnamed</em>'}</div>
+    <div class="switch-addr">${sw.address}</div>
+  </div>
+  <div class="switch-actions">
+    <button class="ghost icon sm" data-action="rename-sw" data-addr="${sw.address}" title="Rename">
+      <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/><path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"/></svg>
+    </button>
+    <button class="ghost icon sm danger" data-action="delete-sw" data-addr="${sw.address}" title="Remove">
+      <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><polyline points="3 6 5 6 21 6"/><path d="M19 6l-1 14H6L5 6"/></svg>
+    </button>
+  </div>
+</div>`).join('');
+    }
+
+    // ── Switch rename ─────────────────────────────────────────
+
+    function startRename(addr) {
+      const sw = _switches.find(s => s.address === addr);
+      const key = addr.replace(/:/g, '_');
+      const infoEl = document.getElementById(`sw-info-${key}`);
+      if (!infoEl) return;
+      infoEl.innerHTML = `
+    <div class="rename-form">
+      <input type="text" id="rename-input-${key}" value="${sw.name || ''}" placeholder="Switch name">
+      <button class="sm primary" onclick="commitRename('${addr}')">OK</button>
+      <button class="sm" onclick="renderSwitches()">✕</button>
+    </div>`;
+      const inp = document.getElementById(`rename-input-${key}`);
+      inp.focus(); inp.select();
+      inp.addEventListener('keydown', e => { if (e.key === 'Enter') commitRename(addr); if (e.key === 'Escape') renderSwitches(); });
+    }
+
+    async function commitRename(addr) {
+      const key = addr.replace(/:/g, '_');
+      const inp = document.getElementById(`rename-input-${key}`);
+      if (!inp) return;
+      try {
+        await req(`/api/switches/${addr}`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ name: inp.value }) });
+        loadAll();
+      } catch (e) { alert(e); }
+    }
+
+    // ── Modal ─────────────────────────────────────────────────
+
+    function openModal(uuid) {
+      _editingUUID = uuid;
+      const gp = _gamepads.find(g => g.uuid === uuid) || { uuid, name: '', color: null, switch_mac_address: null };
+      document.getElementById('modal-uuid').textContent = uuid;
+      document.getElementById('field-name').value = gp.name || '';
+      const col = gp.color || '#ffffff';
+      document.getElementById('field-color-picker').value = col;
+      document.getElementById('field-color-hex').value = col;
+      const sel = document.getElementById('field-switch');
+      sel.innerHTML = `<option value="">— pair new Switch —</option>` +
+        _switches.filter(s => s.address).map(s => `<option value="${s.address}" ${s.address === gp.switch_mac_address ? 'selected' : ''}>${s.name || s.address}</option>`).join('');
+      document.getElementById('modal-bg').classList.add('open');
+      document.getElementById('field-name').focus();
+    }
+
+    function closeModal() {
+      document.getElementById('modal-bg').classList.remove('open');
+      _editingUUID = null;
+    }
+
+    async function saveModal() {
+      if (!_editingUUID) return;
+      const name = document.getElementById('field-name').value;
+      const color = document.getElementById('field-color-hex').value || null;
+      const switch_mac_address = document.getElementById('field-switch').value || null;
+      const btn = document.getElementById('modal-save');
+      btn.disabled = true; btn.textContent = 'Saving…';
+      try {
+        await req(`/api/gamepads/${_editingUUID}/set_config`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ name, color, switch_mac_address })
+        });
+        closeModal(); loadAll();
+      } catch (e) { alert(e); }
+      btn.disabled = false; btn.textContent = 'Save';
+    }
+
+    // ── Event delegation ──────────────────────────────────────
+
+    document.getElementById('gamepads-grid').addEventListener('click', async e => {
+      const btn = e.target.closest('[data-action]');
+      if (!btn) return;
+      const { action, uuid } = btn.dataset;
+
+      if (action === 'refresh') {
+        const card = document.getElementById('refresh-card');
+        if (card) card.classList.add('spinning');
+        await loadAll();
+        if (card) card.classList.remove('spinning');
+        return;
+      }
+
+      if (action === 'edit') { openModal(uuid); return; }
+
+      if (action === 'delete') {
+        const gp = _gamepads.find(g => g.uuid === uuid);
+        if (!confirm(`Delete saved config for "${gp?.name || uuid}"?`)) return;
+        try { await req(`/api/gamepads/${uuid}`, { method: 'DELETE' }); loadGamepads(); } catch (e) { alert(e); }
+        return;
+      }
+
+      btn.disabled = true;
+      const orig = btn.textContent;
+      btn.textContent = '…';
+      try {
+        if (action === 'connect') await req(`/api/gamepads/${uuid}/connect`);
+        if (action === 'disconnect') await req(`/api/gamepads/${uuid}/disconnect`);
+        loadGamepads();
+      } catch (e) { alert(e); }
+      btn.disabled = false;
+      btn.textContent = orig;
+    });
+
+    document.getElementById('switch-panel').addEventListener('click', e => {
+      const btn = e.target.closest('[data-action]');
+      if (!btn) return;
+      const { action, addr } = btn.dataset;
+      if (action === 'rename-sw') { startRename(addr); return; }
+      if (action === 'delete-sw') {
+        const sw = _switches.find(s => s.address === addr);
+        if (!confirm(`Remove "${sw?.name || addr}"?`)) return;
+        req(`/api/switches/${addr}`, { method: 'DELETE' }).then(loadAll).catch(alert);
+      }
+    });
+
+    // Color picker sync
+    document.getElementById('field-color-picker').addEventListener('input', e => {
+      document.getElementById('field-color-hex').value = e.target.value;
+    });
+    document.getElementById('field-color-hex').addEventListener('input', e => {
+      const v = e.target.value;
+      if (/^#[0-9a-fA-F]{6}$/.test(v)) document.getElementById('field-color-picker').value = v;
+    });
+
+    // Modal controls
+    document.getElementById('modal-close').addEventListener('click', closeModal);
+    document.getElementById('modal-cancel').addEventListener('click', closeModal);
+    document.getElementById('modal-save').addEventListener('click', saveModal);
+    document.getElementById('modal-bg').addEventListener('click', e => { if (e.target === e.currentTarget) closeModal(); });
+    document.addEventListener('keydown', e => { if (e.key === 'Escape') closeModal(); });
+
+    // Config actions
+    document.getElementById('btn-shutdown').addEventListener('click', async () => {
+      if (!confirm('Shut down the Switchify server?')) return;
+      try { await req('/shutdown'); } catch { }
+      setStatus(false);
+    });
+    document.getElementById('btn-save-disk').addEventListener('click', () =>
+      req('/create_config_file').then(() => alert('Config saved to disk.')).catch(alert)
+    );
+    document.getElementById('btn-export').addEventListener('click', () =>
+      window.open(BASE + '/config', '_blank')
+    );
+    document.getElementById('btn-import').addEventListener('click', () =>
+      document.getElementById('import-input').click()
+    );
+    document.getElementById('import-input').addEventListener('change', async e => {
+      const file = e.target.files[0]; if (!file) return;
+      const text = await file.text();
+      try {
+        await req('/config', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: text });
+        loadAll(); alert('Config imported.');
+      } catch (err) { alert(err); }
+      e.target.value = '';
+    });
+    document.getElementById('btn-clear-config').addEventListener('click', () => {
+      if (!confirm('Clear all saved config? This cannot be undone.')) return;
+      req('/config', { method: 'DELETE' }).then(loadAll).catch(alert);
+    });
+
+    // ── Start ─────────────────────────────────────────────────
+    loadAll();
+  </script>
+</body>
+
+</html>
